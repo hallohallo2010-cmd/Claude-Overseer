@@ -899,7 +899,7 @@
 
 
   .undo-toast{
-    position:fixed;left:14px;bottom:90px;
+    position:fixed;left:74px;bottom:32px;
     display:flex;align-items:center;gap:10px;
     background:#1a1a1d;border:1px solid var(--line-2);
     padding:10px 8px 10px 14px;border-radius:999px;
@@ -922,9 +922,59 @@
     background:none;border:0;
   }
 
+  /* ============== HISTORY MODAL ============== */
+  .history-fab{
+    position:fixed;left:14px;bottom:24px;z-index:55;
+    width:44px;height:44px;border-radius:50%;
+    background:#1a1a1d;border:1px solid var(--line-2);
+    color:var(--mute);font-size:17px;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .history-fab:active{transform:scale(.95)}
+  .hist-filters{
+    display:flex;gap:6px;padding:12px 18px;border-bottom:1px solid var(--line);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .hist-filters::-webkit-scrollbar{display:none}
+  .hist-chip{
+    flex-shrink:0;padding:6px 12px;border-radius:999px;
+    background:var(--card);border:1px solid var(--line);
+    font-size:11px;letter-spacing:.04em;color:var(--mute);white-space:nowrap;
+  }
+  .hist-chip.active{background:rgba(255,255,255,.1);color:var(--txt);border-color:rgba(255,255,255,.25)}
+  .hist-chip .cnt{margin-left:5px;opacity:.6;font-size:10px}
+  .hist-section-h{
+    font-size:10px;letter-spacing:.18em;color:var(--mute-2);
+    text-transform:uppercase;margin:14px 0 8px;padding:0 2px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .hist-section-h .cnt{color:var(--mute)}
+  .hist-item{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:11px 14px;margin-bottom:5px;
+    display:flex;align-items:flex-start;gap:10px;
+  }
+  .hist-item .hi-date{
+    font-size:10px;letter-spacing:.06em;color:var(--mute-2);
+    text-transform:uppercase;flex-shrink:0;min-width:64px;padding-top:1px;
+  }
+  .hist-item .hi-body{flex:1;min-width:0}
+  .hist-item .hi-main{font-size:13px;line-height:1.4;word-break:break-word}
+  .hist-item .hi-meta{font-size:11px;color:var(--mute);margin-top:2px;line-height:1.4;word-break:break-word}
+  .hist-item .hi-tags{display:inline-flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+  .hist-item .hi-tag{font-size:9px;letter-spacing:.06em;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.05);color:var(--mute);text-transform:uppercase}
+  .hist-item .hi-x{
+    flex-shrink:0;color:var(--mute-2);font-size:13px;padding:2px 6px;line-height:1;
+    background:none;border:0;
+  }
+  .hist-empty{text-align:center;color:var(--mute-2);font-size:12px;padding:40px 8px}
+  .mood-emoji{font-size:18px;line-height:1}
+
   /* ===== TRASH MODAL ===== */
   .trash-fab{
-    position:fixed;left:14px;bottom:24px;z-index:55;
+    position:fixed;left:14px;bottom:80px;z-index:55;
     width:44px;height:44px;border-radius:50%;
     background:#1a1a1d;border:1px solid var(--line-2);
     color:var(--mute);font-size:17px;
@@ -1632,6 +1682,19 @@ This is a snapshot from chat history, not a clinical assessment. Where you are i
   <button class="ut-x" id="undoDismiss" aria-label="dismiss">×</button>
 </div>
 
+<button class="history-fab" id="historyFab" title="View all history">📜</button>
+
+<div class="modal" id="historyModal">
+  <div class="modal-card hist-card">
+    <div class="modal-head hist-head">
+      <h2>All history</h2>
+      <button class="close" id="historyClose">×</button>
+    </div>
+    <div class="hist-filters" id="histFilters"></div>
+    <div class="modal-body" id="historyBody"></div>
+  </div>
+</div>
+
 <button class="trash-fab" id="trashFab" title="Recently deleted">
   ↺<span class="count" id="trashCount">0</span>
 </button>
@@ -1950,6 +2013,206 @@ function renderTrashFab(){
   fab.classList.add('show');
   cnt.textContent=state.trash.length;
 }
+
+/* ==========================================================
+   HISTORY MODAL — see all past logs across categories
+   ========================================================== */
+let _histFilter='all';
+
+function fmtHistDate(ts){
+  const d=new Date(ts);
+  const now=new Date();
+  const diffDays=(now-d)/86400000;
+  if(diffDays<1 && now.getDate()===d.getDate()) return 'TODAY';
+  if(diffDays<2 && now.getDate()-d.getDate()===1) return 'YDAY';
+  if(diffDays<7) return d.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase();
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase();
+}
+function fmtHistDateStr(dateStr){
+  // for sleep dates "YYYY-MM-DD"
+  const d=new Date(dateStr+'T00:00:00');
+  return fmtHistDate(d.getTime());
+}
+const MOOD_EMOJI=['','😔','😕','😐','🙂','😄'];
+
+function gatherHistory(){
+  const items=[];
+  // Sleeps
+  state.sleeps.forEach(s=>{
+    items.push({
+      kind:'sleep',
+      ts:s.ts||new Date(s.date+'T08:00:00').getTime(),
+      id:s.id,
+      label:`${s.hours}h sleep · quality ${s.quality}/5`,
+      meta:s.notes||'',
+      date:fmtHistDateStr(s.date),
+    });
+  });
+  // Moods
+  state.moods.forEach(m=>{
+    items.push({
+      kind:'mood',
+      ts:m.ts,
+      id:m.id,
+      emoji:MOOD_EMOJI[m.score]||'',
+      label:`Mood ${m.score}/5`,
+      meta:m.note||'',
+      tags:m.tags||[],
+      date:fmtHistDate(m.ts),
+    });
+  });
+  // Journal
+  state.journals.forEach(j=>{
+    items.push({
+      kind:'journal',
+      ts:j.ts,
+      id:j.id,
+      label:'Journal',
+      meta:j.text.length>180?j.text.slice(0,180)+'…':j.text,
+      date:fmtHistDate(j.ts),
+    });
+  });
+  // Meals
+  state.meals.forEach(m=>{
+    items.push({
+      kind:'meal',
+      ts:m.date||Date.now(),
+      id:m.id,
+      label:`${m.name} · ${m.kcal} kcal`,
+      meta:`P${Math.round(m.p||0)} · C${Math.round(m.c||0)} · F${Math.round(m.f||0)}`,
+      date:fmtHistDate(m.date||Date.now()),
+    });
+  });
+  // Gym sets — group by session
+  const bySession={};
+  state.gymHistory.forEach(g=>{
+    if(g.exId==='run') return; // runs handled separately
+    const k=g.sessionId||g.dayKey||g.date;
+    if(!bySession[k]) bySession[k]={ts:g.sessionId||0,date:g.date,sets:[],dayKey:g.dayKey};
+    bySession[k].sets.push(g);
+    if(!bySession[k].ts && g.sessionId) bySession[k].ts=g.sessionId;
+  });
+  Object.entries(bySession).forEach(([k,sess])=>{
+    if(!sess.sets.length) return;
+    // Synthesize a ts if no sessionId (older logs)
+    let ts=sess.ts;
+    if(!ts && sess.dayKey){
+      try{const[y,m,d]=sess.dayKey.split('-').map(Number);ts=new Date(y,m,d,12).getTime();}catch(e){ts=Date.now();}
+    }
+    const exNames=[...new Set(sess.sets.map(s=>s.ex))];
+    const totalSets=sess.sets.length;
+    items.push({
+      kind:'gym',
+      ts:ts||Date.now(),
+      id:'g_'+k,
+      label:`Workout · ${exNames.length} exercises · ${totalSets} sets`,
+      meta:exNames.slice(0,4).join(' · ')+(exNames.length>4?'…':''),
+      date:sess.date?sess.date.toUpperCase():fmtHistDate(ts||Date.now()),
+      payload:sess.sets,
+    });
+  });
+  // Runs
+  state.runs.forEach(r=>{
+    let ts=Date.now();
+    try{
+      if(r.id && r.id.startsWith('r')) ts=+r.id.slice(1)||ts;
+    }catch(e){}
+    items.push({
+      kind:'run',
+      ts,
+      id:r.id,
+      label:`Run · ${r.distance_km.toFixed(2)}km`,
+      meta:`${fmtTime(r.duration_s)} · ${fmtPace(r.pace_s)}/km`,
+      date:r.date?r.date.toUpperCase():fmtHistDate(ts),
+    });
+  });
+  // Expenses
+  state.expenses.forEach(x=>{
+    items.push({
+      kind:'expense',
+      ts:x.date||Date.now(),
+      id:x.id,
+      label:`${x.name} · ${(+x.amt).toFixed(2)} ${state.currency}`,
+      date:fmtHistDate(x.date||Date.now()),
+    });
+  });
+  // Sort newest first
+  items.sort((a,b)=>b.ts-a.ts);
+  return items;
+}
+
+function renderHistoryFilters(items){
+  const wrap=$('#histFilters'); wrap.innerHTML='';
+  const counts={all:items.length};
+  items.forEach(i=>{ counts[i.kind]=(counts[i.kind]||0)+1; });
+  const kinds=[
+    ['all','All'],
+    ['gym','Gym'],
+    ['run','Runs'],
+    ['sleep','Sleep'],
+    ['mood','Mood'],
+    ['journal','Journal'],
+    ['meal','Meals'],
+    ['expense','Spending'],
+  ];
+  kinds.forEach(([k,label])=>{
+    if(k!=='all' && !counts[k]) return;
+    const b=document.createElement('button');
+    b.className='hist-chip'+(_histFilter===k?' active':'');
+    b.innerHTML=`${label}<span class="cnt">${counts[k]||0}</span>`;
+    b.addEventListener('click',()=>{ _histFilter=k; openHistory(); });
+    wrap.appendChild(b);
+  });
+}
+
+function openHistory(){
+  const items=gatherHistory();
+  renderHistoryFilters(items);
+  const body=$('#historyBody'); body.innerHTML='';
+  const filtered = _histFilter==='all' ? items : items.filter(i=>i.kind===_histFilter);
+  if(!filtered.length){
+    body.innerHTML='<div class="hist-empty">No entries logged yet for this filter</div>';
+    $('#historyModal').classList.add('show');
+    return;
+  }
+  // Group by month
+  let lastMonth='';
+  filtered.forEach(it=>{
+    const d=new Date(it.ts);
+    const mo=d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    if(mo!==lastMonth){
+      const h=document.createElement('div');
+      h.className='hist-section-h';
+      h.innerHTML=`<span>${mo}</span><span class="cnt">${filtered.filter(x=>new Date(x.ts).toLocaleDateString('en-US',{month:'long',year:'numeric'})===mo).length}</span>`;
+      body.appendChild(h);
+      lastMonth=mo;
+    }
+    const row=document.createElement('div');
+    row.className='hist-item';
+    const emoji = it.emoji ? `<span class="mood-emoji">${it.emoji}</span>` : '';
+    let mainHTML = it.label.replace(/</g,'&lt;');
+    if(it.kind==='journal') mainHTML='<b>Journal</b>';
+    const metaHTML = it.meta ? `<div class="hi-meta">${it.meta.replace(/</g,'&lt;')}</div>` : '';
+    const tagsHTML = (it.tags && it.tags.length) ? `<div class="hi-tags">${it.tags.map(t=>`<span class="hi-tag">${t}</span>`).join('')}</div>` : '';
+    row.innerHTML=`
+      <div class="hi-date">${it.date}</div>
+      ${emoji?`<div>${emoji}</div>`:''}
+      <div class="hi-body">
+        <div class="hi-main">${mainHTML}</div>
+        ${metaHTML}
+        ${tagsHTML}
+      </div>`;
+    body.appendChild(row);
+  });
+  $('#historyModal').classList.add('show');
+}
+
+$('#historyFab').addEventListener('click',openHistory);
+$('#historyClose').addEventListener('click',()=>$('#historyModal').classList.remove('show'));
+$('#historyModal').addEventListener('click',e=>{
+  if(e.target.id==='historyModal') $('#historyModal').classList.remove('show');
+});
+
 
 function openTrash(){
   const list=$('#trashList'); list.innerHTML='';
