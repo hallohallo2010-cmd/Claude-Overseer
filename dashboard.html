@@ -622,6 +622,19 @@
   .energy-foot{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.06em;color:var(--mute-2);text-transform:uppercase}
   .energy-foot b{color:var(--txt);font-weight:500}
 
+  /* felt-energy correction row */
+  .felt-row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .felt{
+    height:54px;border-radius:9px;
+    background:var(--card-2);border:1px solid var(--line);
+    font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    transition:all .15s;
+  }
+  .felt small{font-size:9px;color:var(--mute-2);letter-spacing:.06em;font-weight:500}
+  .felt.active{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3)}
+  .felt.active small{color:var(--txt)}
+  .felt:active{transform:scale(.96)}
+
   /* ============== MOOD ============== */
   .mood-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
   .mood{
@@ -922,7 +935,47 @@
     background:none;border:0;
   }
 
-  /* ============== HISTORY MODAL ============== */
+  /* ============== DAILY SUMMARIES ============== */
+  .summary-card{
+    background:linear-gradient(135deg,rgba(255,122,24,.04),rgba(255,122,24,0));
+    border:1px solid rgba(255,122,24,.15);
+    border-radius:10px;padding:14px;margin-bottom:8px;
+    cursor:pointer;transition:all .15s;
+  }
+  .summary-card:hover{border-color:rgba(255,122,24,.3)}
+  .summary-card .sc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px}
+  .summary-card .sc-date{font-size:10px;letter-spacing:.16em;color:var(--accent-2);text-transform:uppercase;font-weight:600}
+  .summary-card .sc-cmt{font-size:10px;color:var(--mute-2);letter-spacing:.06em}
+  .summary-card .sc-text{font-size:13px;line-height:1.5;color:var(--txt);white-space:pre-wrap}
+  .summary-card .sc-preview{max-height:64px;overflow:hidden;position:relative}
+  .summary-card .sc-preview::after{
+    content:"";position:absolute;bottom:0;left:0;right:0;height:24px;
+    background:linear-gradient(transparent,#0d0d0e);
+    pointer-events:none;
+  }
+  .summary-card.expanded .sc-preview{max-height:none}
+  .summary-card.expanded .sc-preview::after{display:none}
+  .summary-card .sc-expand{font-size:11px;color:var(--mute);margin-top:6px;letter-spacing:.04em}
+  .summary-comments{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:none}
+  .summary-card.expanded .summary-comments{display:block}
+  .summary-comment{
+    font-size:12px;color:var(--mute);line-height:1.45;margin-bottom:6px;
+    padding:8px 10px;background:var(--card-2);border-radius:6px;
+  }
+  .summary-comment .sc-cm-time{font-size:9px;letter-spacing:.1em;color:var(--mute-2);text-transform:uppercase;display:block;margin-bottom:2px}
+  .summary-add{
+    margin-top:8px;display:grid;grid-template-columns:1fr 36px;gap:6px;
+  }
+  .summary-add input{
+    background:var(--card-2);border:1px solid var(--line);
+    border-radius:7px;padding:8px 10px;font-size:12px;
+  }
+  .summary-add button{
+    background:var(--card-2);border:1px solid var(--line);
+    border-radius:7px;font-size:11px;color:var(--mute);
+  }
+
+
   .history-fab{
     position:fixed;left:14px;bottom:24px;z-index:55;
     width:44px;height:44px;border-radius:50%;
@@ -1260,6 +1313,7 @@
     <div class="card">
       <div class="meal-tabs">
         <button class="meal-tab active" data-mtab="photo">📷 Photo</button>
+        <button class="meal-tab" data-mtab="describe">💬 Describe</button>
         <button class="meal-tab" data-mtab="manual">✏ Manual</button>
       </div>
 
@@ -1298,6 +1352,30 @@
         </div>
       </div>
 
+      <div class="meal-pane" data-pane="describe" style="display:none">
+        <div style="font-size:11px;color:var(--mute);line-height:1.45;margin-bottom:10px">
+          Type or dictate what you ate — Claude estimates macros from your description.
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <input id="descInput" placeholder="e.g. 200g chicken breast, 150g rice, 1 tbsp olive oil" style="flex:1;background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:13px"/>
+          <button class="mic-btn" id="descMic" title="Voice">🎙</button>
+        </div>
+        <button class="log-btn" id="descAnalyze">✦ Estimate macros</button>
+        <div id="descStatus" style="font-size:11px;color:var(--mute);margin-top:8px;display:none"></div>
+        <div id="descResult" style="display:none">
+          <div class="meal-result">
+            <input class="result-name" id="descResName" placeholder="Meal name"/>
+            <div class="result-row">
+              <div class="rcol"><div class="rl">KCAL</div><input type="number" id="descResKcal"/></div>
+              <div class="rcol"><div class="rl">P (g)</div><input type="number" id="descResP"/></div>
+              <div class="rcol"><div class="rl">C (g)</div><input type="number" id="descResC"/></div>
+              <div class="rcol"><div class="rl">F (g)</div><input type="number" id="descResF"/></div>
+            </div>
+            <button class="log-btn" id="descConfirm">Add to today</button>
+          </div>
+        </div>
+      </div>
+
       <div class="meal-pane" data-pane="manual" style="display:none">
         <div class="meal-result">
           <input class="result-name" id="manName" placeholder="Meal name (e.g. Chicken & rice)"/>
@@ -1314,6 +1392,9 @@
 
     <div class="section-title">Logged today</div>
     <div id="mealList"></div>
+
+    <div class="section-title">Day totals · last 7</div>
+    <div id="macroDaysList"></div>
   </section>
 
   <!-- ============================================================
@@ -1439,6 +1520,24 @@
       </div>
       <button class="reflect-btn" id="enAdvice" style="margin-top:12px;width:100%;height:40px">✦ Ask what to eat / do right now</button>
       <div class="reflect-out" id="enAdviceOut" style="display:none"></div>
+
+      <!-- Felt-energy correction -->
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-size:10px;letter-spacing:.18em;color:var(--mute-2);text-transform:uppercase;margin-bottom:8px">How's your actual energy?</div>
+        <div class="felt-row" id="feltRow">
+          <button class="felt" data-fe="20">😴<small>20</small></button>
+          <button class="felt" data-fe="40">😕<small>40</small></button>
+          <button class="felt" data-fe="60">😐<small>60</small></button>
+          <button class="felt" data-fe="80">🙂<small>80</small></button>
+          <button class="felt" data-fe="100">⚡<small>100</small></button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="feltNote" placeholder="Optional note — what's it actually like?" style="flex:1;background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px"/>
+          <button class="mic-btn" id="feltMic" title="Voice">🎙</button>
+        </div>
+        <button class="log-btn" id="feltSave" style="margin-top:8px">Log it</button>
+        <div id="feltDiff" style="font-size:11px;color:var(--mute);margin-top:8px;line-height:1.4;display:none"></div>
+      </div>
     </div>
 
     <div class="section-title">How are you right now?</div>
@@ -1488,6 +1587,17 @@
 
     <div class="section-title">Past entries</div>
     <div id="journalList"></div>
+
+    <div class="section-title">Daily summaries · AI</div>
+    <div class="card" style="padding:14px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--mute);line-height:1.45;flex:1">
+          One AI-written recap per day. Auto-generates near midnight from everything you logged. You can also write one now manually.
+        </div>
+        <button class="reflect-btn" id="genSummary" style="flex-shrink:0;height:36px;padding:0 14px">✦ Generate today</button>
+      </div>
+      <div id="summaryList"></div>
+    </div>
 
     <div class="section-title">Observations from our chats</div>
     <div class="card patterns-card">
@@ -1776,6 +1886,14 @@ const defaults = {
   macroTarget:{kcal:2800,protein:130,carbs:365,fat:80},
   meals:[],
   mealsDate:null,
+  macroDays:[],        // end-of-day macro snapshots {date,kcal,p,c,f,target,mealCount,mealNames}
+
+  // energy meter calibration
+  energyComments:[],   // {id, ts, score:0-100 felt, computedScore, label, note}
+  energyOffset:0,      // -25..+25 learned offset applied to base computation
+
+  // daily AI summaries (one per day, written ~midnight or on-demand)
+  dailySummaries:[],   // {id, date "YYYY-MM-DD", ts, summary, comments:[{ts,text}], snapshot:{...}}
 
   // gym
   gymCfg:{gym:"Clever Fit"},
@@ -1871,7 +1989,34 @@ function weekKey(d=new Date()){
     state.goals.forEach(g=>g.done=false);
     state.goalsDate=k;
   }
-  if(state.mealsDate!==k){ state.meals=[]; state.mealsDate=k; }
+  if(state.mealsDate!==k){
+    // Snapshot the previous day's totals before wiping
+    if(state.mealsDate && state.meals.length){
+      const totals=state.meals.reduce((a,m)=>({
+        k:a.k+(+m.kcal||0), p:a.p+(+m.p||0), c:a.c+(+m.c||0), f:a.f+(+m.f||0),
+      }),{k:0,p:0,c:0,f:0});
+      // Use the dayKey we're closing as the snapshot date
+      const [year,monthIdx,day]=state.mealsDate.split('-').map(Number);
+      // Use noon of that day so date sorting/display is unambiguous
+      const ts=new Date(year,monthIdx,day,12,0,0).getTime();
+      if(!state.macroDays) state.macroDays=[];
+      state.macroDays.unshift({
+        id:'md_'+ts,
+        dayKey:state.mealsDate,
+        ts,
+        kcal:Math.round(totals.k),
+        p:Math.round(totals.p),
+        c:Math.round(totals.c),
+        f:Math.round(totals.f),
+        target:state.macroTarget?{...state.macroTarget}:null,
+        mealCount:state.meals.length,
+        mealNames:state.meals.map(m=>m.name).slice(0,8),
+      });
+      if(state.macroDays.length>180) state.macroDays.length=180; // keep ~6 months
+    }
+    state.meals=[];
+    state.mealsDate=k;
+  }
   const wk=weekKey();
   if(state.expensesWeekStart!==wk){ state.expenses=[]; state.expensesWeekStart=wk; }
   if(!state.gymWeek || state.gymWeek.key!==wk){ state.gymWeek={key:wk,sessions:0,target:2,max:3}; }
@@ -2083,6 +2228,19 @@ function gatherHistory(){
       date:fmtHistDate(m.date||Date.now()),
     });
   });
+  // End-of-day macro snapshots
+  (state.macroDays||[]).forEach(md=>{
+    const tgt=md.target||{kcal:2800,protein:130,carbs:365,fat:80};
+    const kcalPct=tgt.kcal?Math.round(md.kcal/tgt.kcal*100):0;
+    items.push({
+      kind:'macroDay',
+      ts:md.ts,
+      id:md.id,
+      label:`Day total · ${md.kcal} kcal (${kcalPct}% of ${tgt.kcal})`,
+      meta:`P ${md.p}/${tgt.protein||'—'}g · C ${md.c}/${tgt.carbs||'—'}g · F ${md.f}/${tgt.fat||'—'}g · ${md.mealCount} meal${md.mealCount===1?'':'s'}`,
+      date:fmtHistDate(md.ts),
+    });
+  });
   // Gym sets — group by session
   const bySession={};
   state.gymHistory.forEach(g=>{
@@ -2152,6 +2310,7 @@ function renderHistoryFilters(items){
     ['sleep','Sleep'],
     ['mood','Mood'],
     ['journal','Journal'],
+    ['macroDay','Day totals'],
     ['meal','Meals'],
     ['expense','Spending'],
   ];
@@ -2259,7 +2418,7 @@ $$('.tab').forEach(t=>{
     $$('.section').forEach(s=>s.classList.toggle('active',s.dataset.section===k));
     if(k==='meds'){ drawPeak(); renderSleep(); }
     if(k==='gym'){ renderGym(); }
-    if(k==='mind'){ renderEnergy(); renderMood(); renderJournal(); }
+    if(k==='mind'){ renderEnergy(); renderMood(); renderJournal(); renderSummaries(); }
     if(k==='overseer'){ renderOv(); }
   });
 });
@@ -2480,6 +2639,32 @@ function renderMacros(){
 
   // API key UI
   $('#apiNote').style.display = state.apiKey ? 'none' : 'block';
+
+  // Last 7 day totals
+  const ml=$('#macroDaysList'); if(ml){
+    ml.innerHTML='';
+    const days=(state.macroDays||[]).slice(0,7);
+    if(!days.length){
+      ml.innerHTML='<div class="empty">Day totals appear here after each daily reset (4 AM)</div>';
+    } else {
+      days.forEach(md=>{
+        const tgt=md.target||state.macroTarget;
+        const kcalPct=tgt.kcal?Math.round(md.kcal/tgt.kcal*100):0;
+        const r=document.createElement('div');
+        r.className='meal-row';
+        r.style.flexDirection='column';
+        r.style.alignItems='stretch';
+        r.style.gap='4px';
+        r.innerHTML=`
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+            <div style="font-size:13px;font-weight:600">${new Date(md.ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+            <div style="font-size:13px;font-weight:600;font-feature-settings:'tnum'">${md.kcal}<small style="font-size:10px;color:var(--mute-2);margin-left:2px">kcal · ${kcalPct}%</small></div>
+          </div>
+          <div style="font-size:11px;color:var(--mute);letter-spacing:.04em">P ${md.p}/${tgt.protein}g · C ${md.c}/${tgt.carbs}g · F ${md.f}/${tgt.fat}g · ${md.mealCount} meal${md.mealCount===1?'':'s'}</div>`;
+        ml.appendChild(r);
+      });
+    }
+  }
 }
 
 // meal sub-tabs
@@ -2665,6 +2850,74 @@ $('#confirmMeal').addEventListener('click',()=>{
   $('#photoResult').style.display='none';
   $('#photoInput').value='';
   save(); renderMacros(); toast('Logged ✓');
+});
+
+// ===== Describe meal (text -> macros via AI) =====
+$('#descAnalyze').addEventListener('click',async()=>{
+  const desc=$('#descInput').value.trim();
+  if(!desc){ toast('Describe what you ate'); return; }
+  if(!state.apiKey){ toast('Add your API key on Macros tab first'); return; }
+  const status=$('#descStatus');
+  status.style.display='block';
+  status.style.color='var(--mute)';
+  status.textContent='Estimating…';
+  $('#descAnalyze').disabled=true;
+  $('#descResult').style.display='none';
+  try{
+    const prompt=`Estimate macros for this meal description: "${desc}". Reply with ONLY a JSON object, no prose, no code fences. Schema: {"name":"short meal name","kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number}. Be realistic — if portions are unclear, use typical serving sizes.`;
+    const reply=await callLLM(prompt);
+    const clean=reply.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(clean);
+    $('#descResName').value=parsed.name||'Meal';
+    $('#descResKcal').value=Math.round(parsed.kcal||0);
+    $('#descResP').value=Math.round(parsed.protein_g||0);
+    $('#descResC').value=Math.round(parsed.carbs_g||0);
+    $('#descResF').value=Math.round(parsed.fat_g||0);
+    status.style.color='var(--green)';
+    status.textContent='Adjust if needed, then add.';
+    $('#descResult').style.display='block';
+  }catch(err){
+    status.style.color='var(--red)';
+    status.textContent='Error: '+err.message;
+  }
+  $('#descAnalyze').disabled=false;
+});
+
+$('#descConfirm').addEventListener('click',()=>{
+  const n=$('#descResName').value.trim()||'Meal';
+  const k=+$('#descResKcal').value, p=+$('#descResP').value||0, c=+$('#descResC').value||0, f=+$('#descResF').value||0;
+  if(!k){ toast('Need kcal'); return; }
+  state.meals.push({id:'m'+Date.now(),name:n,kcal:k,p,c,f,date:Date.now()});
+  $('#descInput').value='';
+  $('#descResult').style.display='none';
+  $('#descStatus').style.display='none';
+  save(); renderMacros(); toast('Logged ✓');
+});
+
+// voice on describe input
+let _descRecog=null;
+$('#descMic').addEventListener('click',()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('Voice not supported on this browser'); return; }
+  if(_descRecog){ _descRecog.stop(); _descRecog=null; $('#descMic').classList.remove('recording'); return; }
+  _descRecog=new SR();
+  _descRecog.lang='en-US'; _descRecog.continuous=true; _descRecog.interimResults=true;
+  let baseText=$('#descInput').value;
+  if(baseText && !baseText.endsWith(' ')) baseText+=' ';
+  _descRecog.onresult=(e)=>{
+    let interim='', finalT='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalT+=t; else interim+=t;
+    }
+    if(finalT){ baseText+=finalT+' '; }
+    $('#descInput').value=baseText+interim;
+  };
+  _descRecog.onend=()=>{ _descRecog=null; $('#descMic').classList.remove('recording'); };
+  _descRecog.onerror=()=>{ _descRecog=null; $('#descMic').classList.remove('recording'); };
+  _descRecog.start();
+  $('#descMic').classList.add('recording');
+  toast('Listening…');
 });
 
 /* ==========================================================
@@ -3588,6 +3841,8 @@ function computeEnergy(){
     reasons.push('nothing eaten yet');
   }
 
+  // Apply learned offset from felt-energy logs
+  if(state.energyOffset) score += state.energyOffset;
   score=Math.max(0,Math.min(100,Math.round(score)));
   const lvl = score>=70?'HIGH':score>=40?'MEDIUM':'LOW';
   return {score,lvl,reasons,sleepStr:last?`${last.hours}h q${last.quality}`:'—',mealAgo,macro};
@@ -3745,6 +4000,250 @@ function renderJournal(){
   const todayEntry=state.journals.find(j=>j.date===today);
   if(todayEntry && !$('#journalText').value) $('#journalText').value=todayEntry.text;
 }
+
+/* ==========================================================
+   DAILY SUMMARIES  (AI recap of the day)
+   ========================================================== */
+function buildDaySnapshot(dateKey){
+  // Gather everything logged for this day
+  // dateKey format: "YYYY-MM-DD" (ISO) — convert from our dayKey "YYYY-monthIdx-day" if needed
+  const isToday = dateKey === new Date().toISOString().slice(0,10);
+  const targetDay = new Date(dateKey+'T00:00:00');
+  const dayStart = targetDay.getTime();
+  const dayEnd = dayStart + 86400000;
+
+  const meals=state.meals.filter(m=>{
+    const t=m.date||0; return t>=dayStart && t<dayEnd;
+  });
+  // Also include macroDay snapshot if available
+  const macroDay = (state.macroDays||[]).find(md=>{
+    const d=new Date(md.ts); return d.toISOString().slice(0,10)===dateKey;
+  });
+  const macroTotals = macroDay || (meals.length ? {
+    kcal:Math.round(meals.reduce((a,m)=>a+(+m.kcal||0),0)),
+    p:Math.round(meals.reduce((a,m)=>a+(+m.p||0),0)),
+    c:Math.round(meals.reduce((a,m)=>a+(+m.c||0),0)),
+    f:Math.round(meals.reduce((a,m)=>a+(+m.f||0),0)),
+    target:state.macroTarget,
+    mealCount:meals.length,
+  } : null);
+
+  const moods=state.moods.filter(m=>m.ts>=dayStart && m.ts<dayEnd);
+  const journal=state.journals.find(j=>j.date===dateKey);
+  const sleep=state.sleeps.find(s=>s.date===dateKey);
+  // Gym sessions logged this day
+  const sessions={};
+  state.gymHistory.forEach(g=>{
+    const t = g.sessionId || (g.dayKey && (()=>{
+      try{const[y,m,d]=g.dayKey.split('-').map(Number);return new Date(y,m,d,12).getTime();}catch(e){return 0;}
+    })());
+    if(t>=dayStart && t<dayEnd){
+      const k=g.sessionId||g.dayKey;
+      if(!sessions[k]) sessions[k]=[];
+      sessions[k].push(g);
+    }
+  });
+  const gymSessions=Object.values(sessions);
+  const runs=state.runs.filter(r=>{
+    let t=Date.now();
+    try{if(r.id && r.id.startsWith('r'))t=+r.id.slice(1)||t;}catch(e){}
+    return t>=dayStart && t<dayEnd;
+  });
+  const expenses=state.expenses.filter(x=>(x.date||0)>=dayStart && (x.date||0)<dayEnd);
+  const feltLogs=(state.energyComments||[]).filter(c=>c.ts>=dayStart && c.ts<dayEnd);
+  const goalsDone=state.goals.filter(g=>g.done).map(g=>g.text);
+
+  return {
+    dateKey, isToday,
+    sleep, moods, journal, macroTotals, meals,
+    gymSessions, runs, expenses, feltLogs, goalsDone,
+  };
+}
+
+async function generateDailySummary(dateKey){
+  if(!state.apiKey) throw new Error('No API key set');
+  const snap=buildDaySnapshot(dateKey);
+
+  // Build a compact human-readable summary of the data
+  const parts=[];
+  if(snap.sleep) parts.push(`Sleep: ${snap.sleep.hours}h, quality ${snap.sleep.quality}/5${snap.sleep.notes?' ('+snap.sleep.notes+')':''}`);
+  if(snap.macroTotals){
+    const t=snap.macroTotals.target||state.macroTarget;
+    parts.push(`Food: ${snap.macroTotals.kcal}/${t.kcal}kcal, P${snap.macroTotals.p}/${t.protein}g C${snap.macroTotals.c}/${t.carbs}g F${snap.macroTotals.f}/${t.fat}g across ${snap.macroTotals.mealCount} meals`);
+    if(snap.meals.length){
+      parts.push(`Meals today: ${snap.meals.map(m=>m.name).join(', ')}`);
+    }
+  }
+  if(snap.moods.length){
+    parts.push(`Mood logs: ${snap.moods.map(m=>{
+      const d=new Date(m.ts);
+      return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} ${m.score}/5 [${(m.tags||[]).join(',')}]${m.note?' "'+m.note+'"':''}`;
+    }).join(' | ')}`);
+  }
+  if(snap.feltLogs.length){
+    parts.push(`Felt-energy logs: ${snap.feltLogs.map(f=>`${new Date(f.ts).getHours()}:${String(new Date(f.ts).getMinutes()).padStart(2,'0')} felt ${f.score} (formula said ${f.computedScore})${f.note?' "'+f.note+'"':''}`).join(' | ')}`);
+  }
+  if(snap.gymSessions.length){
+    snap.gymSessions.forEach(sets=>{
+      const exes=[...new Set(sets.map(s=>s.ex))];
+      parts.push(`Gym session: ${exes.join(', ')} (${sets.length} sets total)`);
+    });
+  }
+  if(snap.runs.length){
+    snap.runs.forEach(r=>parts.push(`Run: ${r.distance_km.toFixed(2)}km in ${fmtTime(r.duration_s)} pace ${fmtPace(r.pace_s)}/km`));
+  }
+  if(snap.expenses.length){
+    const total=snap.expenses.reduce((a,x)=>a+(+x.amt||0),0);
+    parts.push(`Spending: ${total.toFixed(2)} ${state.currency} on ${snap.expenses.map(x=>x.name).join(', ')}`);
+  }
+  if(snap.goalsDone.length){
+    parts.push(`Goals completed: ${snap.goalsDone.join(', ')}`);
+  }
+  if(snap.journal){
+    parts.push(`Journal entry: "${snap.journal.text}"`);
+  }
+
+  if(parts.length===0){
+    throw new Error('Nothing logged for this day yet');
+  }
+
+  const dateLabel=new Date(dateKey+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const prompt=`Matteo · 15 · night-owl · building a video editing agency · prone to mood swings.
+
+Data from ${dateLabel}:
+${parts.join('\n')}
+
+Write a personal day recap. Rules:
+- 4-7 short sentences, plain prose, no bullet points, no headers
+- Past tense — recap, not advice
+- Connect dots between body + mood + food + work if patterns show
+- No labels ("high-performing founder" etc), no LinkedIn framing
+- Talk like a friend who pays attention
+- If energy/mood was off, name it honestly
+- If the day was strong, say so without being saccharine
+- End with one thing worth carrying into tomorrow, only if it naturally fits — don't force advice`;
+
+  const reply=await callLLM(prompt);
+  return reply.trim();
+}
+
+async function saveDailySummary(dateKey, manual=false){
+  const text=await generateDailySummary(dateKey);
+  if(!state.dailySummaries) state.dailySummaries=[];
+  // Replace existing summary for this date
+  state.dailySummaries=state.dailySummaries.filter(s=>s.date!==dateKey);
+  const snap=buildDaySnapshot(dateKey);
+  state.dailySummaries.unshift({
+    id:'ds_'+Date.now(),
+    date:dateKey,
+    ts:Date.now(),
+    summary:text,
+    comments:[],
+    snapshot:snap,
+    manual,
+  });
+  if(state.dailySummaries.length>120) state.dailySummaries.length=120;
+  save();
+  return text;
+}
+
+function renderSummaries(){
+  const list=$('#summaryList'); if(!list) return; list.innerHTML='';
+  const all=state.dailySummaries||[];
+  if(!all.length){
+    list.innerHTML='<div class="empty">No summaries yet. Generate one above, or wait — auto-creates near midnight.</div>';
+    return;
+  }
+  all.slice(0,30).forEach(s=>{
+    const card=document.createElement('div');
+    card.className='summary-card';
+    const d=new Date(s.date+'T12:00:00');
+    const dateLabel=d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    const cmts=(s.comments||[]).length;
+    card.innerHTML=`
+      <div class="sc-head">
+        <div class="sc-date">${dateLabel}${s.manual?' · MANUAL':''}</div>
+        <div class="sc-cmt">${cmts?cmts+' comment'+(cmts===1?'':'s'):''}</div>
+      </div>
+      <div class="sc-preview"><div class="sc-text">${s.summary.replace(/</g,'&lt;')}</div></div>
+      <div class="sc-expand">Tap to expand · add comments</div>
+      <div class="summary-comments">
+        <div class="sc-comments-list"></div>
+        <div class="summary-add">
+          <input class="sc-cm-input" placeholder="Add a comment now (any time)…"/>
+          <button class="sc-cm-add">+</button>
+        </div>
+      </div>`;
+    card.addEventListener('click',e=>{
+      if(e.target.closest('.summary-comments')) return;
+      card.classList.toggle('expanded');
+      // populate comments
+      const cl=card.querySelector('.sc-comments-list'); cl.innerHTML='';
+      (s.comments||[]).forEach(c=>{
+        const cd=new Date(c.ts);
+        const el=document.createElement('div'); el.className='summary-comment';
+        el.innerHTML=`<span class="sc-cm-time">${cd.toLocaleDateString('en-US',{month:'short',day:'numeric'})} ${cd.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span>${c.text.replace(/</g,'&lt;')}`;
+        cl.appendChild(el);
+      });
+    });
+    const addBtn=card.querySelector('.sc-cm-add');
+    const addInp=card.querySelector('.sc-cm-input');
+    const doAdd=()=>{
+      const v=addInp.value.trim(); if(!v) return;
+      if(!s.comments) s.comments=[];
+      s.comments.push({ts:Date.now(),text:v});
+      addInp.value='';
+      save(); renderSummaries();
+      // keep card expanded
+      setTimeout(()=>{
+        const updated=$('#summaryList').querySelector(`[data-sid="${s.id}"]`);
+      },10);
+    };
+    addBtn.addEventListener('click',e=>{e.stopPropagation();doAdd();});
+    addInp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.stopPropagation();doAdd();}});
+    addInp.addEventListener('click',e=>e.stopPropagation());
+    card.dataset.sid=s.id;
+    list.appendChild(card);
+  });
+}
+
+$('#genSummary').addEventListener('click',async()=>{
+  if(!state.apiKey){ toast('Add API key on Macros tab first'); return; }
+  const btn=$('#genSummary');
+  btn.disabled=true;
+  const orig=btn.textContent;
+  btn.textContent='Thinking…';
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    await saveDailySummary(today,true);
+    renderSummaries();
+    toast('Summary written ✓');
+  }catch(err){
+    toast('Error: '+err.message);
+  }
+  btn.disabled=false; btn.textContent=orig;
+});
+
+// Auto-generate summary near midnight
+function maybeAutoGenerateSummary(){
+  if(!state.apiKey) return;
+  const now=new Date();
+  // Only run between 23:30 and 03:59 local time
+  const hour=now.getHours();
+  if(hour<23 && hour>3) return;
+  // dateKey: if it's before 4am, use yesterday
+  let d=new Date(now);
+  if(hour<4) d.setDate(d.getDate()-1);
+  const dateKey=d.toISOString().slice(0,10);
+  const exists=(state.dailySummaries||[]).some(s=>s.date===dateKey && !s.manual);
+  if(exists) return;
+  // Quietly run — fire and forget
+  saveDailySummary(dateKey,false).then(()=>renderSummaries()).catch(()=>{});
+}
+
+// check on load and every 30 minutes
+setTimeout(maybeAutoGenerateSummary, 5000);
+setInterval(maybeAutoGenerateSummary, 30*60*1000);
 
 
 // Patterns toggle
@@ -3977,6 +4476,73 @@ In 3-4 short sentences max: what should I eat right now (specific foods — eggs
     out.textContent='Error: '+err.message;
   }
   $('#enAdvice').disabled=false;
+});
+
+/* ==========================================================
+   FELT ENERGY — calibrates the formula
+   ========================================================== */
+let _feltScore=null;
+$$('.felt').forEach(b=>b.addEventListener('click',()=>{
+  _feltScore=+b.dataset.fe;
+  $$('.felt').forEach(x=>x.classList.toggle('active',+x.dataset.fe===_feltScore));
+}));
+
+$('#feltSave').addEventListener('click',()=>{
+  if(_feltScore===null){ toast('Tap a felt level first'); return; }
+  const e=computeEnergy();
+  if(!state.energyComments) state.energyComments=[];
+  state.energyComments.unshift({
+    id:'fe'+Date.now(),
+    ts:Date.now(),
+    score:_feltScore,
+    computedScore:e.score,
+    label:e.lvl,
+    note:$('#feltNote').value.trim(),
+  });
+  if(state.energyComments.length>100) state.energyComments.length=100;
+
+  // Re-calibrate offset: use mean diff of last 10 logs
+  const recent=state.energyComments.slice(0,10);
+  const meanDiff = recent.reduce((a,c)=>a+(c.score-c.computedScore),0)/recent.length;
+  // Apply smoothed offset, capped to +/-25
+  state.energyOffset = Math.max(-25,Math.min(25,Math.round(meanDiff)));
+
+  const diff=_feltScore-e.score;
+  let msg = `Logged · formula said ${e.score}, you said ${_feltScore}.`;
+  if(Math.abs(diff)>=15) msg += ` Recalibrating offset to ${state.energyOffset>=0?'+':''}${state.energyOffset}.`;
+  $('#feltDiff').textContent=msg;
+  $('#feltDiff').style.display='block';
+
+  $('#feltNote').value='';
+  $$('.felt').forEach(x=>x.classList.remove('active'));
+  _feltScore=null;
+  save(); renderEnergy(); toast('Energy comment saved ✓');
+});
+
+// Voice on felt note
+let _feltRecog=null;
+$('#feltMic').addEventListener('click',()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('Voice not supported on this browser'); return; }
+  if(_feltRecog){ _feltRecog.stop(); _feltRecog=null; $('#feltMic').classList.remove('recording'); return; }
+  _feltRecog=new SR();
+  _feltRecog.lang='en-US'; _feltRecog.continuous=true; _feltRecog.interimResults=true;
+  let baseText=$('#feltNote').value;
+  if(baseText && !baseText.endsWith(' ')) baseText+=' ';
+  _feltRecog.onresult=(e)=>{
+    let interim='', finalT='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) finalT+=t; else interim+=t;
+    }
+    if(finalT){ baseText+=finalT+' '; }
+    $('#feltNote').value=baseText+interim;
+  };
+  _feltRecog.onend=()=>{ _feltRecog=null; $('#feltMic').classList.remove('recording'); };
+  _feltRecog.onerror=()=>{ _feltRecog=null; $('#feltMic').classList.remove('recording'); };
+  _feltRecog.start();
+  $('#feltMic').classList.add('recording');
+  toast('Listening…');
 });
 
 /* ==========================================================
@@ -4297,6 +4863,7 @@ function renderAll(){
   renderEnergy();
   renderMood();
   renderJournal();
+  renderSummaries();
   renderOv();
   $('#tomorrowNote').value=state.tomorrowNote||'';
   if(state.apiKey) $('#apiKeyIn').value=state.apiKey;
