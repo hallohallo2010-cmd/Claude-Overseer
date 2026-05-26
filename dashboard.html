@@ -771,6 +771,47 @@
   }
 
   .run-card{padding:18px}
+  .activity-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  }
+  .act{
+    height:56px;border-radius:9px;
+    background:var(--card-2);border:1px solid var(--line);
+    font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    transition:all .15s;color:var(--mute);
+  }
+  .act small{font-size:9px;letter-spacing:.06em;font-weight:500;color:inherit}
+  .act.active{
+    background:linear-gradient(135deg,rgba(255,122,24,.12),rgba(255,122,24,.04));
+    border-color:rgba(255,122,24,.4);color:var(--accent-2);
+  }
+  .act:active{transform:scale(.95)}
+  @media (max-width:380px){
+    .activity-grid{grid-template-columns:repeat(3,1fr)}
+  }
+
+  /* adapt card */
+  .adapt-card{
+    background:linear-gradient(135deg,rgba(74,222,128,.06),rgba(74,222,128,0));
+    border:1px solid rgba(74,222,128,.2);
+    border-radius:var(--radius);padding:14px;margin-bottom:14px;
+  }
+  .adapt-card .ah{
+    font-size:10px;letter-spacing:.18em;color:var(--green);
+    text-transform:uppercase;margin-bottom:6px;font-weight:600;
+  }
+  .adapt-card .at{font-size:14px;font-weight:600;margin-bottom:4px}
+  .adapt-card .as{font-size:12px;color:var(--mute);line-height:1.5}
+  .adapt-card .adj-row{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;
+  }
+  .adapt-card .adj{
+    background:rgba(0,0,0,.3);border-radius:7px;padding:8px;text-align:center;
+  }
+  .adapt-card .adj .l{font-size:9px;letter-spacing:.14em;color:var(--mute-2);text-transform:uppercase;margin-bottom:2px}
+  .adapt-card .adj .v{font-size:14px;font-weight:600;font-feature-settings:"tnum"}
+  .adapt-card .adj .v.up{color:var(--green-2)}
+
   .run-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
   .rs-cell{
     background:var(--card-2);border:1px solid var(--line);
@@ -1274,6 +1315,7 @@
        SECTION: MACROS
        ============================================================ -->
   <section class="section" data-section="macros">
+    <div id="adaptBanner" style="display:none"></div>
     <div class="section-title">Today · Fuel</div>
 
     <div class="card">
@@ -1409,7 +1451,7 @@
         <button data-v="push">Push</button>
         <button data-v="pull">Pull</button>
         <button data-v="legs">Legs</button>
-        <button data-v="run">Run</button>
+        <button data-v="cardio">Cardio</button>
       </div>
     </div>
 
@@ -1436,12 +1478,23 @@
     <!-- Default suggestion list (when no session) -->
     <div id="exList"></div>
 
-    <!-- run tracker, only shown when day=run -->
+    <!-- cardio tracker, only shown when day=cardio -->
     <div id="runWrap" style="display:none">
       <div class="card run-card">
-        <div class="run-stats">
+        <div style="font-size:10px;letter-spacing:.18em;color:var(--mute-2);text-transform:uppercase;margin-bottom:8px">Activity</div>
+        <div class="activity-grid" id="activityGrid">
+          <button class="act" data-act="run">🏃<small>Run</small></button>
+          <button class="act" data-act="bike">🚴<small>Bike</small></button>
+          <button class="act" data-act="swim">🏊<small>Swim</small></button>
+          <button class="act" data-act="hike">🥾<small>Hike</small></button>
+          <button class="act" data-act="walk">🚶<small>Walk</small></button>
+          <button class="act" data-act="tennis">🎾<small>Tennis</small></button>
+          <button class="act" data-act="other">⚡<small>Other</small></button>
+        </div>
+
+        <div class="run-stats" style="margin-top:14px">
           <div class="rs-cell">
-            <div class="rs-l">DISTANCE</div>
+            <div class="rs-l" id="runStat1L">DISTANCE</div>
             <div class="rs-v" id="runDist">0.00<small>km</small></div>
           </div>
           <div class="rs-cell">
@@ -1449,20 +1502,22 @@
             <div class="rs-v" id="runTime">00:00</div>
           </div>
           <div class="rs-cell">
-            <div class="rs-l">PACE</div>
+            <div class="rs-l" id="runStat3L">PACE</div>
             <div class="rs-v" id="runPace">—<small>/km</small></div>
           </div>
         </div>
         <div class="run-gps">
           <span class="gps-dot" id="gpsDot"></span>
-          <span id="gpsStatus">GPS off</span>
+          <span id="gpsStatus">Pick activity to start</span>
         </div>
         <div class="run-actions">
-          <button class="run-btn run-start" id="runStart">▶ Start run</button>
+          <button class="run-btn run-start" id="runStart" disabled>▶ Start</button>
           <button class="run-btn run-stop" id="runStop" style="display:none">■ Stop & save</button>
         </div>
+        <div id="activityHint" style="font-size:11px;color:var(--mute);margin-top:10px;line-height:1.4;display:none"></div>
       </div>
-      <div class="section-title">Recent runs</div>
+
+      <div class="section-title">Recent cardio</div>
       <div id="runList"></div>
     </div>
 
@@ -2244,7 +2299,7 @@ function gatherHistory(){
   // Gym sets — group by session
   const bySession={};
   state.gymHistory.forEach(g=>{
-    if(g.exId==='run') return; // runs handled separately
+    if(g.exId==='run' || (g.exId||'').startsWith('cardio_')) return; // cardio handled separately
     const k=g.sessionId||g.dayKey||g.date;
     if(!bySession[k]) bySession[k]={ts:g.sessionId||0,date:g.date,sets:[],dayKey:g.dayKey};
     bySession[k].sets.push(g);
@@ -2605,7 +2660,8 @@ function drawPeak(){
    MACROS  (photo + manual)
    ========================================================== */
 function renderMacros(){
-  const tgt=state.macroTarget;
+  const tgt=getEffectiveTarget();
+  renderAdaptBanner();
   const total=state.meals.reduce((a,m)=>a+(+m.kcal||0),0);
   const pro=state.meals.reduce((a,m)=>a+(+m.p||0),0);
   const carb=state.meals.reduce((a,m)=>a+(+m.c||0),0);
@@ -2940,7 +2996,7 @@ function renderGym(){
   $('#todaySplit').textContent = day==='rest'?'Rest day':day.toUpperCase();
 
   // run mode hides exercise list and shows run tracker
-  if(day==='run'){
+  if(day==='cardio'){
     $('#exList').style.display='none';
     $('#sessionExList').style.display='none';
     $('#workoutControls').style.display='none';
@@ -2978,7 +3034,7 @@ function renderGym(){
   const list=$('#exList'); list.innerHTML='';
 
   if(day==='rest' || !exes.length){
-    list.innerHTML='<div class="empty">No exercises for this day. Tap Push, Pull, Legs, or Run above.</div>';
+    list.innerHTML='<div class="empty">No exercises for this day. Tap Push, Pull, Legs, or Cardio above.</div>';
     renderHist();
     return;
   }
@@ -3080,14 +3136,66 @@ function renderGym(){
 }
 
 /* ==========================================================
-   RUN TRACKER (GPS-based)
+   CARDIO TRACKER (multi-activity, GPS where applicable)
    ========================================================== */
 let _runWatch=null;
 let _runTimer=null;
-let _runState=null; // {points:[], startTs, distance, lastFix}
+let _runState=null;
+let _selectedActivity=null;
+let _wakeLock=null;
+
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      _wakeLock=await navigator.wakeLock.request('screen');
+      _wakeLock.addEventListener('release',()=>{ _wakeLock=null; });
+    }
+  }catch(e){ /* not supported or denied */ }
+}
+async function releaseWakeLock(){
+  try{ if(_wakeLock){ await _wakeLock.release(); _wakeLock=null; } }catch(e){}
+}
+// Re-acquire wake lock when page returns to foreground during a session
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && _runState && !_wakeLock){
+    requestWakeLock();
+  }
+});
+
+function persistRunState(){
+  if(_runState){
+    try{ localStorage.setItem('overseer_runstate',JSON.stringify(_runState)); }catch(e){}
+  } else {
+    try{ localStorage.removeItem('overseer_runstate'); }catch(e){}
+  }
+}
+function restoreRunState(){
+  try{
+    const raw=localStorage.getItem('overseer_runstate');
+    if(!raw) return null;
+    const s=JSON.parse(raw);
+    // Don't restore stale states (>4h old)
+    if(Date.now()-s.startTs > 4*3600000){
+      localStorage.removeItem('overseer_runstate');
+      return null;
+    }
+    return s;
+  }catch(e){ return null; }
+}
+
+// MET = metabolic equivalent (energy cost), gps = uses GPS, pace = shows pace vs speed
+const ACTIVITIES={
+  run:   {label:'Run',    icon:'🏃', met:9.0,  gps:true,  pace:true,  hint:'Distance & pace tracked via GPS.'},
+  bike:  {label:'Bike',   icon:'🚴', met:7.5,  gps:true,  pace:false, hint:'Distance tracked. Speed shown km/h.'},
+  swim:  {label:'Swim',   icon:'🏊', met:7.0,  gps:false, pace:false, hint:'Duration only — GPS unreliable in water.'},
+  hike:  {label:'Hike',   icon:'🥾', met:6.0,  gps:true,  pace:false, hint:'Distance tracked. Lower intensity, longer.'},
+  walk:  {label:'Walk',   icon:'🚶', met:3.5,  gps:true,  pace:false, hint:'Distance tracked. Active recovery.'},
+  tennis:{label:'Tennis', icon:'🎾', met:7.0,  gps:false, pace:false, hint:'Duration only. Hard on legs and shoulders.'},
+  other: {label:'Other',  icon:'⚡', met:6.0,  gps:true,  pace:false, hint:'Distance tracked. Adjust intensity manually.'},
+};
 
 function haversine(a,b){
-  const R=6371; // km
+  const R=6371;
   const dLat=(b.lat-a.lat)*Math.PI/180;
   const dLon=(b.lon-a.lon)*Math.PI/180;
   const lat1=a.lat*Math.PI/180, lat2=b.lat*Math.PI/180;
@@ -3107,55 +3215,121 @@ function fmtPace(secPerKm){
   const m=Math.floor(secPerKm/60), s=Math.floor(secPerKm%60);
   return `${m}:${String(s).padStart(2,'0')}`;
 }
+function fmtSpeed(kmh){
+  if(!isFinite(kmh)||kmh<=0) return '—';
+  return kmh.toFixed(1);
+}
+
+function selectActivity(actId){
+  _selectedActivity=actId;
+  $$('.act').forEach(b=>b.classList.toggle('active',b.dataset.act===actId));
+  const a=ACTIVITIES[actId]; if(!a) return;
+  if(a.gps && a.pace){ $('#runStat1L').textContent='DISTANCE'; $('#runStat3L').textContent='PACE'; }
+  else if(a.gps){ $('#runStat1L').textContent='DISTANCE'; $('#runStat3L').textContent='SPEED'; }
+  else { $('#runStat1L').textContent='—'; $('#runStat3L').textContent='—'; }
+  $('#activityHint').textContent=a.hint;
+  $('#activityHint').style.display='block';
+  $('#runStart').disabled=false;
+  $('#gpsStatus').textContent = a.gps ? 'GPS off · ready to start' : 'No GPS · duration only';
+}
+$$('.act').forEach(b=>b.addEventListener('click',()=>selectActivity(b.dataset.act)));
 
 function updateRunDisplay(){
   if(!_runState) return;
+  const a=ACTIVITIES[_runState.activity]||ACTIVITIES.run;
   const dur=(Date.now()-_runState.startTs)/1000;
-  $('#runDist').innerHTML=_runState.distance.toFixed(2)+'<small>km</small>';
+  if(a.gps) $('#runDist').innerHTML=_runState.distance.toFixed(2)+'<small>km</small>';
+  else $('#runDist').innerHTML='—';
   $('#runTime').textContent=fmtTime(dur);
-  const pace = _runState.distance>0.05 ? (dur/_runState.distance) : 0;
-  $('#runPace').innerHTML = (pace>0?fmtPace(pace):'—')+'<small>/km</small>';
+  if(a.gps && a.pace){
+    const pace = _runState.distance>0.05 ? (dur/_runState.distance) : 0;
+    $('#runPace').innerHTML = (pace>0?fmtPace(pace):'—')+'<small>/km</small>';
+  } else if(a.gps){
+    const speed = dur>0 ? (_runState.distance/(dur/3600)) : 0;
+    $('#runPace').innerHTML = (speed>0?fmtSpeed(speed):'—')+'<small>km/h</small>';
+  } else {
+    $('#runPace').innerHTML='—';
+  }
 }
 
-$('#runStart').addEventListener('click',()=>{
-  if(!navigator.geolocation){ toast('GPS not available on this device'); return; }
-  _runState={points:[],startTs:Date.now(),distance:0,lastFix:null};
-  $('#gpsStatus').textContent='Acquiring GPS…';
-  $('#gpsDot').className='gps-dot weak';
+$('#runStart').addEventListener('click',async()=>{
+  if(!_selectedActivity){ toast('Pick an activity first'); return; }
+  const a=ACTIVITIES[_selectedActivity];
+  _runState={points:[],startTs:Date.now(),distance:0,lastFix:null,activity:_selectedActivity};
   $('#runStart').style.display='none';
   $('#runStop').style.display='block';
   updateRunDisplay();
-  _runWatch=navigator.geolocation.watchPosition(
-    pos=>{
-      const {latitude,longitude,accuracy}=pos.coords;
-      // First fix or accuracy too poor — gate on accuracy
-      if(accuracy>40){
-        $('#gpsStatus').textContent=`Weak signal (±${Math.round(accuracy)}m)`;
-        $('#gpsDot').className='gps-dot weak';
-        if(!_runState.lastFix) return; // wait for a good first fix
-      } else {
-        $('#gpsStatus').textContent=`GPS live (±${Math.round(accuracy)}m)`;
-        $('#gpsDot').className='gps-dot live';
-      }
-      const fix={lat:latitude,lon:longitude,t:Date.now()};
-      if(_runState.lastFix){
-        const d=haversine(_runState.lastFix,fix);
-        // Discard implausible jumps (>50m/s)
-        const dt=(fix.t-_runState.lastFix.t)/1000;
-        if(dt>0 && d/dt < 0.05){ /* paused / barely moving */ }
-        else if(dt>0 && d/dt > 0.05){ _runState.distance+=d; }
-      }
-      _runState.lastFix=fix;
-      _runState.points.push(fix);
-      updateRunDisplay();
-    },
-    err=>{
-      $('#gpsStatus').textContent='GPS error: '+err.message;
+  persistRunState();
+  requestWakeLock();
+
+  if(a.gps){
+    if(!navigator.geolocation){
+      $('#gpsStatus').textContent='GPS not supported on this browser';
       $('#gpsDot').className='gps-dot';
-    },
-    {enableHighAccuracy:true,timeout:15000,maximumAge:1000}
-  );
-  _runTimer=setInterval(updateRunDisplay,1000);
+    } else {
+      $('#gpsStatus').textContent='Asking GPS permission…';
+      $('#gpsDot').className='gps-dot weak';
+      // Kick off an explicit getCurrentPosition first — handles iOS permission prompt cleanly
+      navigator.geolocation.getCurrentPosition(
+        ()=>{ /* permission granted, watch will pick up the rest */ },
+        err=>{
+          if(err.code===1){
+            $('#gpsStatus').textContent='Permission denied — enable Location in Settings → Safari (or Brave) → Location';
+          } else {
+            $('#gpsStatus').textContent='GPS unavailable: '+(err.message||'unknown');
+          }
+          $('#gpsDot').className='gps-dot';
+        },
+        {enableHighAccuracy:true,timeout:20000,maximumAge:0}
+      );
+      _runWatch=navigator.geolocation.watchPosition(
+        pos=>{
+          const {latitude,longitude,accuracy}=pos.coords;
+          // Relax threshold — iOS often gives 65m on first fix outdoors
+          if(accuracy>80){
+            $('#gpsStatus').textContent=`Weak signal (±${Math.round(accuracy)}m) — waiting`;
+            $('#gpsDot').className='gps-dot weak';
+            if(!_runState.lastFix) return; // wait for a usable first fix
+          } else if(accuracy>30){
+            $('#gpsStatus').textContent=`GPS OK (±${Math.round(accuracy)}m)`;
+            $('#gpsDot').className='gps-dot weak';
+          } else {
+            $('#gpsStatus').textContent=`GPS live (±${Math.round(accuracy)}m)`;
+            $('#gpsDot').className='gps-dot live';
+          }
+          const fix={lat:latitude,lon:longitude,t:Date.now(),acc:accuracy};
+          if(_runState.lastFix){
+            const d=haversine(_runState.lastFix,fix);
+            const dt=(fix.t-_runState.lastFix.t)/1000;
+            // Only count if moved at least 1.4 m/s avg over the segment (filters GPS jitter)
+            // but allow up to 15 m/s (cycling). Discard sub-meter jitter and impossibly fast jumps.
+            if(dt>0 && d>0.003 && d/dt<15 && (a.met>=6 || d/dt>0.5)){
+              _runState.distance+=d;
+            }
+          }
+          _runState.lastFix=fix;
+          _runState.points.push(fix);
+          updateRunDisplay();
+          persistRunState();
+        },
+        err=>{
+          if(err.code===1){
+            $('#gpsStatus').textContent='Location denied — turn on in iOS Settings';
+          } else if(err.code===3){
+            $('#gpsStatus').textContent='GPS timeout — try outdoors, away from buildings';
+          } else {
+            $('#gpsStatus').textContent='GPS error: '+(err.message||'unknown');
+          }
+          $('#gpsDot').className='gps-dot';
+        },
+        {enableHighAccuracy:true,timeout:30000,maximumAge:2000}
+      );
+    }
+  } else {
+    $('#gpsStatus').textContent='Timing only (no GPS for '+a.label.toLowerCase()+')';
+    $('#gpsDot').className='gps-dot';
+  }
+  _runTimer=setInterval(()=>{ updateRunDisplay(); persistRunState(); },1000);
 });
 
 $('#runStop').addEventListener('click',()=>{
@@ -3163,49 +3337,70 @@ $('#runStop').addEventListener('click',()=>{
   if(_runWatch!==null){ navigator.geolocation.clearWatch(_runWatch); _runWatch=null; }
   if(_runTimer){ clearInterval(_runTimer); _runTimer=null; }
   const dur=(Date.now()-_runState.startTs)/1000;
-  if(_runState.distance<0.05){
-    if(!confirm('Run is under 50m — discard?')){ /* keep */ }
-    else { resetRunUI(); _runState=null; return; }
+  const a=ACTIVITIES[_runState.activity]||ACTIVITIES.run;
+  if(dur<30){
+    if(confirm('Session is under 30 seconds — discard?')){ releaseWakeLock(); resetRunUI(); _runState=null; persistRunState(); return; }
   }
   const pace=_runState.distance>0?(dur/_runState.distance):0;
+  const wKg=(state.user&&state.user.weightKg)||63;
+  const kcal=Math.round(a.met*wKg*(dur/3600));
   const todayLabel=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
   state.runs.unshift({
     id:'r'+Date.now(),
     date:todayLabel,
     dayKey:dayKey(),
+    activity:_runState.activity,
+    activityIcon:a.icon,
+    activityLabel:a.label,
     distance_km:+_runState.distance.toFixed(3),
     duration_s:Math.round(dur),
     pace_s:Math.round(pace),
+    kcal,
     points:_runState.points.length<300?_runState.points:_runState.points.filter((_,i)=>i%2===0),
   });
-  // count as a gym session for the week
-  state.gymHistory.unshift({date:todayLabel,dayKey:dayKey(),ex:'Run',exId:'run',w:0,r:Math.round(_runState.distance*10)/10});
+  state.gymHistory.unshift({
+    date:todayLabel,dayKey:dayKey(),
+    ex:a.label+(_runState.distance>0?` ${_runState.distance.toFixed(2)}km`:''),
+    exId:'cardio_'+_runState.activity,
+    w:0,r:Math.round(_runState.distance*10)/10,
+  });
   save();
-  toast(`Run saved · ${_runState.distance.toFixed(2)}km`);
+  toast(`${a.label} saved · ${kcal} kcal`);
+  releaseWakeLock();
   resetRunUI();
   _runState=null;
+  persistRunState();
   renderRunHistory();
   renderTop();
+  applyDailyAdaptation();
 });
 
 function resetRunUI(){
   $('#runStart').style.display='block';
   $('#runStop').style.display='none';
-  $('#gpsStatus').textContent='GPS off';
+  $('#gpsStatus').textContent='Pick activity to start';
   $('#gpsDot').className='gps-dot';
   $('#runDist').innerHTML='0.00<small>km</small>';
   $('#runTime').textContent='00:00';
   $('#runPace').innerHTML='—<small>/km</small>';
+  $$('.act').forEach(b=>b.classList.remove('active'));
+  _selectedActivity=null;
+  $('#runStart').disabled=true;
+  if($('#activityHint')) $('#activityHint').style.display='none';
 }
 
 function renderRunHistory(){
   const list=$('#runList'); if(!list) return; list.innerHTML='';
-  if(!state.runs.length){ list.innerHTML='<div class="empty">No runs yet</div>'; return; }
+  if(!state.runs.length){ list.innerHTML='<div class="empty">No cardio logged yet</div>'; return; }
   state.runs.slice(0,10).forEach(r=>{
+    const icon=r.activityIcon||'🏃';
+    const label=r.activityLabel||'Run';
     const row=document.createElement('div'); row.className='run-row';
+    const distStr = r.distance_km>0 ? `${r.distance_km.toFixed(2)}km` : '—';
+    const kcalStr = r.kcal ? ` · ${r.kcal}kcal` : '';
     row.innerHTML=`
-      <div class="rd">${r.distance_km.toFixed(2)}<small>km</small></div>
-      <div class="rt">${fmtTime(r.duration_s)} · <b>${fmtPace(r.pace_s)}</b>/km</div>
+      <div class="rd">${icon}<small style="margin-left:4px">${label}</small></div>
+      <div class="rt">${distStr} · ${fmtTime(r.duration_s)}${kcalStr}</div>
       <div class="rdate">${r.date}</div>
       <button class="x" data-runx="${r.id}" style="color:var(--mute-2);font-size:14px;padding:4px;line-height:1;background:none;border:0">×</button>`;
     list.appendChild(row);
@@ -3214,10 +3409,94 @@ function renderRunHistory(){
     const idx=state.runs.findIndex(r=>r.id===b.dataset.runx);
     if(idx<0) return;
     const r=state.runs[idx];
-    softDelete('run',r,idx,`${r.distance_km.toFixed(2)}km · ${r.date}`);
+    softDelete('run',r,idx,`${r.activityLabel||'Cardio'} · ${r.date}`);
     state.runs.splice(idx,1);
-    save(); renderRunHistory();
+    save(); renderRunHistory(); applyDailyAdaptation();
   }));
+}
+
+/* ==========================================================
+   ADAPTIVE DAILY TARGETS (cardio + gym shift macros)
+   ========================================================== */
+function applyDailyAdaptation(){
+  const today=dayKey();
+  const todayStart=new Date(); todayStart.setHours(4,0,0,0);
+  if(new Date().getHours()<4) todayStart.setDate(todayStart.getDate()-1);
+  const todayEnd=new Date(todayStart); todayEnd.setDate(todayStart.getDate()+1);
+
+  let cardioKcal=0, cardioMinutes=0, cardioTypes=[];
+  state.runs.forEach(r=>{
+    let ts=Date.now();
+    try{ if(r.id&&r.id.startsWith('r')) ts=+r.id.slice(1)||ts; }catch(e){}
+    if(ts>=todayStart.getTime() && ts<todayEnd.getTime()){
+      cardioKcal += (r.kcal||0);
+      cardioMinutes += Math.round((r.duration_s||0)/60);
+      if(r.activityLabel) cardioTypes.push(r.activityLabel);
+    }
+  });
+
+  const todaySets=state.gymHistory.filter(g=>g.dayKey===today && !(g.exId||'').startsWith('cardio_'));
+  const gymSessionIds=new Set(todaySets.map(g=>g.sessionId).filter(Boolean));
+  const gymSessionCount = gymSessionIds.size || (todaySets.length>0 ? 1 : 0);
+  const gymSets=todaySets.length;
+
+  const base=state.macroTarget || {kcal:2800,protein:130,carbs:365,fat:80};
+  const kcalBonus = Math.round(cardioKcal * 0.85);
+  const proteinBonus = gymSessionCount * 20;
+  const carbBonus = gymSessionCount * 30 + Math.round(cardioKcal * 0.4 / 4);
+
+  const adj={
+    kcal: base.kcal + kcalBonus,
+    protein: base.protein + proteinBonus,
+    carbs: base.carbs + carbBonus,
+    fat: base.fat,
+  };
+
+  state.adjustedMacros = { base, adj, cardioKcal, cardioMinutes, cardioTypes, gymSessionCount, gymSets };
+  save();
+  renderMacros();
+  renderTop();
+}
+
+function getEffectiveTarget(){
+  if(state.adjustedMacros && (state.adjustedMacros.cardioKcal>0 || state.adjustedMacros.gymSessionCount>0)){
+    return state.adjustedMacros.adj;
+  }
+  return state.macroTarget;
+}
+
+function renderAdaptBanner(){
+  const el=$('#adaptBanner'); if(!el) return;
+  const am=state.adjustedMacros;
+  if(!am || (am.cardioKcal===0 && am.gymSessionCount===0)){
+    el.style.display='none';
+    return;
+  }
+  const base=am.base, adj=am.adj;
+  const parts=[];
+  if(am.cardioTypes && am.cardioTypes.length){
+    parts.push(`${am.cardioTypes.join(' + ')} · ${am.cardioMinutes}min · ${am.cardioKcal}kcal`);
+  }
+  if(am.gymSessionCount>0){
+    parts.push(`${am.gymSessionCount} gym session${am.gymSessionCount===1?'':'s'} (${am.gymSets} sets)`);
+  }
+  const cell=(label,b,a)=>{
+    const diff=a-b;
+    return `<div class="adj"><div class="l">${label}</div><div class="v ${diff>0?'up':''}">${a}${diff>0?` <span style="font-size:10px;color:var(--mute-2)">+${diff}</span>`:''}</div></div>`;
+  };
+  el.innerHTML=`
+    <div class="adapt-card">
+      <div class="ah">⚡ Targets adjusted</div>
+      <div class="at">${parts.join(' · ')}</div>
+      <div class="as">Bumped today's macros to refuel. Resets at 4 AM.</div>
+      <div class="adj-row">
+        ${cell('KCAL',base.kcal,adj.kcal)}
+        ${cell('P g',base.protein,adj.protein)}
+        ${cell('C g',base.carbs,adj.carbs)}
+        ${cell('F g',base.fat,adj.fat)}
+      </div>
+    </div>`;
+  el.style.display='block';
 }
 
 function renderHist(){
@@ -3226,7 +3505,7 @@ function renderHist(){
   if(!recent.length){ hl.innerHTML='<div class="empty">No sessions logged yet</div>'; return; }
   recent.forEach(h=>{
     const r=document.createElement('div'); r.className='hist-row';
-    const val = h.exId==='run' ? `${h.r}km` : `${h.w}kg × ${h.r}`;
+    const val = (h.exId||'').startsWith('cardio_') || h.exId==='run' ? `${h.r}km` : `${h.w}kg × ${h.r}`;
     r.innerHTML=`<div class="d">${h.date}</div><div class="v">${h.ex} · ${val}</div>`;
     hl.appendChild(r);
   });
@@ -3253,7 +3532,7 @@ function getLastSetForEx(exId){
 
 function startWorkout(){
   const day=state.gymCfg.day;
-  if(day==='run' || day==='rest'){ toast('Pick Push, Pull, or Legs first'); return; }
+  if(day==='cardio' || day==='rest'){ toast('Pick Push, Pull, or Legs first'); return; }
   state.activeSession={
     start:Date.now(),
     day,
@@ -3704,7 +3983,7 @@ function ovReply(q){
     const last=state.gymHistory[0];
     const gw=state.gymWeek||{sessions:0,target:2};
     if(!last) return `${gw.sessions}/${gw.target} sessions this week. No sets logged yet — open the Workout tab.`;
-    const valStr = last.exId==='run' ? `${last.r}km` : `${last.w}kg × ${last.r}`;
+    const valStr = (last.exId||'').startsWith('cardio_') || last.exId==='run' ? `${last.r}km` : `${last.w}kg × ${last.r}`;
     return `${gw.sessions}/${gw.target} sessions this week. Last: ${last.ex} ${valStr} on ${last.date}.`;
   }
   if(/calorie|kcal|eat|food|macro/.test(q)){
@@ -4320,7 +4599,7 @@ if(_run){
         return `${d?d.toLocaleString('en-US',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'?'} ${m.name} ${m.kcal}kcal P${m.p||0}/C${m.c||0}/F${m.f||0}`;
       }),
       journals: journals.map(j=>`[${j.date}] ${j.text.slice(0,400)}${j.text.length>400?'…':''}`),
-      gym: gym.map(g=>g.exId==='run'?`${g.date} run ${g.r}km`:`${g.date} ${g.ex} ${g.w}kg×${g.r}`),
+      gym: gym.map(g=>(g.exId||'').startsWith('cardio_')||g.exId==='run'?`${g.date} ${g.ex||'cardio'}`:`${g.date} ${g.ex} ${g.w}kg×${g.r}`),
       runs: runs.map(r=>`${r.date} ${r.distance_km.toFixed(2)}km in ${fmtTime(r.duration_s)} pace ${fmtPace(r.pace_s)}/km`),
       goals_today: `${goals.filter(g=>g.done).length}/${goals.length} done${gw?` · gym ${gw.sessions}/${gw.target} this week`:''}`,
     };
@@ -4685,7 +4964,7 @@ Right now:
 - Recent moods: ${recentMoods||'none'}
 - Goals today: ${goalsDone}/${state.goals.length}${urgent.length?' · urgent left: '+urgent.join(', '):''}
 - Gym sessions this week: ${gw.sessions}/${gw.target}${gw.sessions>=gw.target?' ✓':''}
-- Last gym: ${lastGym?(lastGym.exId==='run'?`run ${lastGym.r}km on ${lastGym.date}`:`${lastGym.ex} ${lastGym.w}kg×${lastGym.r} on ${lastGym.date}`):'none logged'}
+- Last gym: ${lastGym?((lastGym.exId||'').startsWith('cardio_')||lastGym.exId==='run'?`${lastGym.ex||'cardio'} on ${lastGym.date}`:`${lastGym.ex} ${lastGym.w}kg×${lastGym.r} on ${lastGym.date}`):'none logged'}
 - Last run: ${lastRun?`${lastRun.distance_km.toFixed(2)}km in ${fmtTime(lastRun.duration_s)} pace ${fmtPace(lastRun.pace_s)}/km on ${lastRun.date}`:'no runs yet'}
 - Stack today: ${stackTaken.length?'taken: '+stackTaken.join(', ')+'. ':''}${stackUntaken.length?'pending: '+stackUntaken.join(', ')+'.':''}${stackLow.length?' Running low: '+stackLow.join(', ')+'.':''}
 - Streak: ${state.streak||0} days
@@ -4876,6 +5155,64 @@ if(state.unlocked) renderAll();
 
 // Resume workout session timer if one was in progress
 if(state.activeSession) startSessionTimer();
+
+// Resume in-progress cardio session if any
+(function resumeCardio(){
+  const saved=restoreRunState();
+  if(!saved) return;
+  _runState=saved;
+  _selectedActivity=saved.activity;
+  // Reflect selected activity in UI
+  $$('.act').forEach(b=>b.classList.toggle('active',b.dataset.act===saved.activity));
+  const a=ACTIVITIES[saved.activity];
+  if(a){
+    if(a.gps && a.pace){ $('#runStat1L').textContent='DISTANCE'; $('#runStat3L').textContent='PACE'; }
+    else if(a.gps){ $('#runStat1L').textContent='DISTANCE'; $('#runStat3L').textContent='SPEED'; }
+    $('#activityHint').textContent=a.hint;
+    $('#activityHint').style.display='block';
+  }
+  $('#runStart').style.display='none';
+  $('#runStop').style.display='block';
+  $('#gpsStatus').textContent='Resumed — resuming GPS…';
+  $('#gpsDot').className='gps-dot weak';
+  updateRunDisplay();
+  requestWakeLock();
+  // Re-start GPS watcher
+  if(a && a.gps && navigator.geolocation){
+    _runWatch=navigator.geolocation.watchPosition(
+      pos=>{
+        const {latitude,longitude,accuracy}=pos.coords;
+        if(accuracy>80){
+          $('#gpsStatus').textContent=`Weak signal (±${Math.round(accuracy)}m)`;
+          $('#gpsDot').className='gps-dot weak';
+          if(!_runState.lastFix) return;
+        } else if(accuracy>30){
+          $('#gpsStatus').textContent=`GPS OK (±${Math.round(accuracy)}m)`;
+          $('#gpsDot').className='gps-dot weak';
+        } else {
+          $('#gpsStatus').textContent=`GPS live (±${Math.round(accuracy)}m)`;
+          $('#gpsDot').className='gps-dot live';
+        }
+        const fix={lat:latitude,lon:longitude,t:Date.now(),acc:accuracy};
+        if(_runState.lastFix){
+          const d=haversine(_runState.lastFix,fix);
+          const dt=(fix.t-_runState.lastFix.t)/1000;
+          if(dt>0 && d>0.003 && d/dt<15 && (a.met>=6 || d/dt>0.5)){
+            _runState.distance+=d;
+          }
+        }
+        _runState.lastFix=fix;
+        _runState.points.push(fix);
+        updateRunDisplay();
+        persistRunState();
+      },
+      err=>{ $('#gpsStatus').textContent='GPS error: '+(err.message||'unknown'); $('#gpsDot').className='gps-dot'; },
+      {enableHighAccuracy:true,timeout:30000,maximumAge:2000}
+    );
+  }
+  _runTimer=setInterval(()=>{ updateRunDisplay(); persistRunState(); },1000);
+  toast('Resumed cardio session');
+})();
 
 window.addEventListener('resize',()=>{drawPeak();});
 
